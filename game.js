@@ -1,226 +1,258 @@
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
-const W = canvas.width;
-const H = canvas.height;
+const WIDTH = canvas.width;
+const HEIGHT = canvas.height;
 
-// 🔊 Sounds
+// =====================
+// 🔊 SOUNDS
+// =====================
 const jumpSound = new Audio("https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg");
 const hitSound = new Audio("https://actions.google.com/sounds/v1/cartoon/concussive_hit_guitar_boing.ogg");
 
-// 🐤 Bird
-let bird = { x: 80, y: 300, v: 0 };
-
-const gravity = 0.45;
-const jump = -7;
-
-// 🚧 Pipes
-let pipeX = W;
-let pipeH = randomPipe();
-const pipeW = 70;
-const gap = 150;
-const speed = 3.2;
-
-// ☁️ Clouds
-let clouds = [
-    {x: 80, y: 100, r: 20},
-    {x: 200, y: 150, r: 30},
-    {x: 320, y: 80, r: 25}
-];
-
-// 🎮 State
-let started = false;
-let gameOver = false;
-let paused = false;
-
-// 🏆 Score
-let score = 0;
+// =====================
+// 🏆 HIGH SCORE
+// =====================
 let highScore = localStorage.getItem("highScore") || 0;
 
+// =====================
+// 🐤 BIRD
+// =====================
+let bird = {
+    x: 80,
+    y: 300,
+    velocity: 0
+};
+
+let gravity = 0.25;
+let jump = -5;
+
+// =====================
+// 🚧 PIPES
+// =====================
+let pipeWidth = 60;
+let pipeGap = 150;
+let pipeX = WIDTH;
+let pipeHeight = randomPipe();
+let pipeSpeed = 4;
+
+// =====================
+// ☁️ CLOUDS
+// =====================
+let clouds = [
+    { x: 50, y: 80, r: 20 },
+    { x: 180, y: 120, r: 30 },
+    { x: 320, y: 70, r: 25 }
+];
+
+// =====================
+// 🎮 GAME STATE
+// =====================
+let started = false;
+let gameOver = false;
+let score = 0;
+let lastScoreTime = Date.now();
+
+// =====================
+// RANDOM PIPE HEIGHT
+// =====================
 function randomPipe() {
-    return Math.floor(Math.random() * 200) + 120;
+    return Math.floor(Math.random() * 250) + 100;
 }
 
-// 💀 reset
-function resetGame() {
-    bird = { x: 80, y: 300, v: 0 };
-    pipeX = W;
-    pipeH = randomPipe();
+// =====================
+// RESTART GAME
+// =====================
+function restartGame() {
+    bird.y = 300;
+    bird.velocity = 0;
+
+    pipeX = WIDTH;
+    pipeHeight = randomPipe();
+
     score = 0;
     gameOver = false;
     started = false;
 }
 
-// ⌨️ controls
-document.addEventListener("keydown", (e) => {
+// =====================
+// INPUT HANDLER (ALL DEVICES)
+// =====================
+function handleAction() {
 
-    if (e.code === "Space") {
-        if (!started) started = true;
-        else if (!gameOver && !paused) {
-            bird.v = jump;
-            jumpSound.currentTime = 0;
-            jumpSound.play().catch(() => {});
-        }
-        else if (gameOver) resetGame();
+    // Start game
+    if (!started) {
+        started = true;
+        jumpSound.play().catch(() => {});
+        return;
     }
 
-    if (e.code === "Escape") paused = !paused;
-});
+    // Jump
+    if (!gameOver) {
+        bird.velocity = jump;
+        jumpSound.play().catch(() => {});
+        return;
+    }
 
-// 🌤️ SKY GRADIENT (REALISTIC FEEL)
-function drawSky() {
-    let grad = ctx.createLinearGradient(0, 0, 0, H);
-    grad.addColorStop(0, "#6ec6ff");   // top sky
-    grad.addColorStop(1, "#bfe9ff");   // bottom sky
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, W, H);
+    // Restart
+    restartGame();
+    jumpSound.play().catch(() => {});
 }
 
-// ☁️ cloud
+// =====================
+// KEYBOARD (PC)
+// =====================
+document.addEventListener("keydown", (e) => {
+    if (e.code === "Space") {
+        handleAction();
+    }
+});
+
+// =====================
+// TOUCH (MOBILE)
+// =====================
+document.addEventListener("touchstart", () => {
+    handleAction();
+});
+
+// =====================
+// MOUSE CLICK
+// =====================
+document.addEventListener("click", () => {
+    handleAction();
+});
+
+// =====================
+// GAMEPAD (CONSOLE)
+// =====================
+let gamepadPressed = false;
+
+function checkGamepad() {
+    const pads = navigator.getGamepads();
+
+    for (let p of pads) {
+        if (!p) continue;
+
+        if (p.buttons[0].pressed && !gamepadPressed) {
+            gamepadPressed = true;
+            handleAction();
+        }
+
+        if (!p.buttons[0].pressed) {
+            gamepadPressed = false;
+        }
+    }
+
+    requestAnimationFrame(checkGamepad);
+}
+checkGamepad();
+
+// =====================
+// DRAW BIRD
+// =====================
+function drawBird() {
+    ctx.fillStyle = "yellow";
+    ctx.beginPath();
+    ctx.arc(bird.x, bird.y, 15, 0, Math.PI * 2);
+    ctx.fill();
+}
+
+// =====================
+// DRAW CLOUD
+// =====================
 function drawCloud(c) {
-    ctx.fillStyle = "rgba(255,255,255,0.9)";
+    ctx.fillStyle = "white";
     ctx.beginPath();
     ctx.arc(c.x, c.y, c.r, 0, Math.PI * 2);
     ctx.fill();
-    ctx.beginPath();
-    ctx.arc(c.x + 20, c.y + 10, c.r, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.beginPath();
-    ctx.arc(c.x - 20, c.y + 10, c.r, 0, Math.PI * 2);
-    ctx.fill();
 }
 
-// 🐤 REALISTIC BIRD (gradient shading)
-function drawBird() {
-
-    // body gradient
-    let grad = ctx.createRadialGradient(
-        bird.x - 5, bird.y - 5, 5,
-        bird.x, bird.y, 20
-    );
-
-    grad.addColorStop(0, "#ffe066");
-    grad.addColorStop(1, "#ffb300");
-
-    ctx.fillStyle = grad;
-    ctx.beginPath();
-    ctx.ellipse(bird.x, bird.y, 16, 12, 0, 0, Math.PI * 2);
-    ctx.fill();
-
-    // wing
-    ctx.fillStyle = "#ff8f00";
-    ctx.beginPath();
-    ctx.ellipse(bird.x - 5, bird.y + 2, 6, 4, 0, 0, Math.PI * 2);
-    ctx.fill();
-
-    // eye white
-    ctx.fillStyle = "white";
-    ctx.beginPath();
-    ctx.arc(bird.x + 5, bird.y - 4, 3, 0, Math.PI * 2);
-    ctx.fill();
-
-    // pupil
-    ctx.fillStyle = "black";
-    ctx.beginPath();
-    ctx.arc(bird.x + 6, bird.y - 4, 1.5, 0, Math.PI * 2);
-    ctx.fill();
-
-    // beak
-    ctx.fillStyle = "#ff6f00";
-    ctx.beginPath();
-    ctx.moveTo(bird.x + 14, bird.y);
-    ctx.lineTo(bird.x + 22, bird.y - 3);
-    ctx.lineTo(bird.x + 22, bird.y + 3);
-    ctx.fill();
-}
-
-// 🚧 LIGHT REALISTIC PIPE
-function drawPipe(x, y, h) {
-
-    // gradient pipe
-    let grad = ctx.createLinearGradient(x, 0, x + pipeW, 0);
-    grad.addColorStop(0, "#6ee07a");
-    grad.addColorStop(1, "#2e7d32");
-
-    ctx.fillStyle = grad;
-
-    // top pipe
-    ctx.fillRect(x, 0, pipeW, h);
-
-    // bottom pipe
-    ctx.fillRect(x, h + gap, pipeW, H);
-
-    // pipe caps (lighter highlight)
-    ctx.fillStyle = "#a5f2b0";
-    ctx.fillRect(x - 5, h - 10, pipeW + 10, 10);
-    ctx.fillRect(x - 5, h + gap, pipeW + 10, 10);
-}
-
-// 💥 death
-function die() {
-    gameOver = true;
-    hitSound.play().catch(() => {});
-}
-
-// 🎮 LOOP
+// =====================
+// GAME LOOP
+// =====================
 function update() {
 
-    drawSky();
+    // SKY
+    ctx.fillStyle = "skyblue";
+    ctx.fillRect(0, 0, WIDTH, HEIGHT);
 
-    // clouds
-    for (let c of clouds) {
+    // CLOUDS
+    clouds.forEach(c => {
         drawCloud(c);
-        c.x -= 0.3;
-        if (c.x < -50) c.x = W + 50;
-    }
+        c.x -= 0.5;
+        if (c.x < -50) c.x = WIDTH + 50;
+    });
 
-    if (started && !gameOver && !paused) {
+    drawBird();
 
-        bird.v += gravity;
-        bird.y += bird.v;
+    if (started && !gameOver) {
 
-        pipeX -= speed;
+        bird.velocity += gravity;
+        bird.y += bird.velocity;
 
-        if (pipeX < -pipeW) {
-            pipeX = W;
-            pipeH = randomPipe();
-            score++;
+        pipeX -= pipeSpeed;
+
+        if (pipeX < -pipeWidth) {
+            pipeX = WIDTH;
+            pipeHeight = randomPipe();
         }
 
-        if (
-            bird.x + 15 > pipeX &&
-            bird.x - 15 < pipeX + pipeW &&
-            (bird.y < pipeH || bird.y > pipeH + gap)
-        ) die();
-
-        if (bird.y < 0 || bird.y > H) die();
+        // SCORE
+        if (Date.now() - lastScoreTime > 2000) {
+            score++;
+            lastScoreTime = Date.now();
+        }
 
         if (score > highScore) {
             highScore = score;
             localStorage.setItem("highScore", highScore);
         }
+
+        // COLLISION
+        if (
+            bird.x + 15 > pipeX &&
+            bird.x - 15 < pipeX + pipeWidth &&
+            (
+                bird.y < pipeHeight ||
+                bird.y > pipeHeight + pipeGap
+            )
+        ) {
+            hitSound.play().catch(() => {});
+            gameOver = true;
+        }
+
+        // OUT OF SCREEN
+        if (bird.y < 0 || bird.y > HEIGHT) {
+            hitSound.play().catch(() => {});
+            gameOver = true;
+        }
     }
 
-    drawPipe(pipeX, 0, pipeH);
-    drawBird();
+    // PIPES
+    ctx.fillStyle = "green";
+    ctx.fillRect(pipeX, 0, pipeWidth, pipeHeight);
+    ctx.fillRect(pipeX, pipeHeight + pipeGap, pipeWidth, HEIGHT);
 
-    // score
+    // SCORE TEXT
     ctx.fillStyle = "black";
     ctx.font = "20px Arial";
     ctx.fillText("Score: " + score, 10, 30);
     ctx.fillText("High: " + highScore, 10, 60);
 
-    if (!started) ctx.fillText("Press SPACE to Start", 80, 250);
+    // START SCREEN
+    if (!started) {
+        ctx.fillText("Tap / Press Space to Start", 60, 300);
+    }
 
-    if (paused) ctx.fillText("PAUSED", 150, 250);
-
+    // GAME OVER
     if (gameOver) {
         ctx.fillStyle = "red";
         ctx.font = "30px Arial";
-        ctx.fillText("GAME OVER", 110, 250);
+        ctx.fillText("GAME OVER", 100, 300);
+
         ctx.fillStyle = "black";
         ctx.font = "20px Arial";
-        ctx.fillText("Press SPACE to Restart", 90, 290);
+        ctx.fillText("Tap / Press to Restart", 70, 340);
     }
 
     requestAnimationFrame(update);
