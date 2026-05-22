@@ -70,17 +70,10 @@ document.addEventListener("keydown", (e) => {
 });
 
 
-// ===============================
-// 📱 MOBILE TOUCH FIX (ADDED)
-// ===============================
-
-// Tap anywhere
+// 📱 MOBILE SUPPORT
 document.addEventListener("touchstart", handleAction);
-
-// Click support (mobile + desktop)
 document.addEventListener("click", handleAction);
 
-// prevent scrolling on mobile
 document.addEventListener("touchmove", function(e){
     e.preventDefault();
 }, { passive: false });
@@ -114,7 +107,7 @@ function drawSky() {
     ctx.fillRect(0, 0, W, H);
 }
 
-// ☁️ clouds
+// ☁️ CLOUDS
 function drawCloud(c) {
     ctx.fillStyle = "rgba(255,255,255,0.9)";
     ctx.beginPath();
@@ -128,27 +121,72 @@ function drawCloud(c) {
     ctx.fill();
 }
 
-// 🐤 BIRD
+// 🐤 UPGRADED BIRD (REALISTIC + ROTATION)
 function drawBird() {
-    ctx.fillStyle = "#ffb300";
+
+    let angle = Math.max(-0.5, Math.min(0.8, bird.v * 0.1));
+
+    ctx.save();
+    ctx.translate(bird.x, bird.y);
+    ctx.rotate(angle);
+
+    let body = ctx.createRadialGradient(-5, -5, 5, 0, 0, 20);
+    body.addColorStop(0, "#fff59d");
+    body.addColorStop(1, "#f9a825");
+
+    ctx.fillStyle = body;
     ctx.beginPath();
-    ctx.ellipse(bird.x, bird.y, 16, 12, 0, 0, Math.PI * 2);
+    ctx.ellipse(0, 0, 16, 12, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = "#f57f17";
+    ctx.beginPath();
+    ctx.ellipse(-5, 3, 7, 5, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = "white";
+    ctx.beginPath();
+    ctx.arc(5, -4, 3, 0, Math.PI * 2);
     ctx.fill();
 
     ctx.fillStyle = "black";
     ctx.beginPath();
-    ctx.arc(bird.x + 5, bird.y - 4, 2, 0, Math.PI * 2);
+    ctx.arc(6, -4, 1.5, 0, Math.PI * 2);
     ctx.fill();
+
+    ctx.fillStyle = "#ff6f00";
+    ctx.beginPath();
+    ctx.moveTo(14, 0);
+    ctx.lineTo(22, -3);
+    ctx.lineTo(22, 3);
+    ctx.fill();
+
+    ctx.restore();
 }
 
-// 🚧 PIPE
+// 🚧 UPGRADED PIPE (3D REALISTIC)
 function drawPipe(x, y, h) {
-    ctx.fillStyle = "#4CAF50";
+
+    let grad = ctx.createLinearGradient(x, 0, x + pipeW, 0);
+    grad.addColorStop(0, "#7bdc7b");
+    grad.addColorStop(0.5, "#43a047");
+    grad.addColorStop(1, "#1b5e20");
+
+    ctx.fillStyle = grad;
+
     ctx.fillRect(x, 0, pipeW, h);
     ctx.fillRect(x, h + gap, pipeW, H);
+
+    ctx.fillStyle = "#a5f6a5";
+    ctx.fillRect(x - 5, h - 12, pipeW + 10, 12);
+    ctx.fillRect(x - 5, h + gap, pipeW + 10, 12);
+
+    ctx.fillStyle = "rgba(0,0,0,0.15)";
+    ctx.fillRect(x + pipeW - 6, 0, 6, h);
+    ctx.fillRect(x + pipeW - 6, h + gap, 6, H);
 }
 
-// 💥 death
+// 💥 DIE
 function die() {
     gameOver = true;
     hitSound.currentTime = 0;
@@ -160,7 +198,6 @@ function update() {
 
     drawSky();
 
-    // clouds
     for (let c of clouds) {
         drawCloud(c);
         c.x -= 0.3;
@@ -197,7 +234,6 @@ function update() {
     drawPipe(pipeX, 0, pipeH);
     drawBird();
 
-    // score
     ctx.fillStyle = "black";
     ctx.font = "20px Arial";
     ctx.fillText("Score: " + score, 10, 30);
