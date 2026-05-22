@@ -4,112 +4,170 @@ const ctx = canvas.getContext("2d");
 const W = canvas.width;
 const H = canvas.height;
 
-// 🔊 FIXED SOUND (no delay issues)
+// 🔊 Sounds
 const jumpSound = new Audio("https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg");
 const hitSound = new Audio("https://actions.google.com/sounds/v1/cartoon/concussive_hit_guitar_boing.ogg");
 
-// 🐤 BIRD (REAL HITBOX, NOT VISUAL ONLY)
-let bird = {
-    x: 90,
-    y: 300,
-    r: 14,
-    v: 0
-};
+// 🐤 Bird
+let bird = { x: 80, y: 300, v: 0 };
 
-let gravity = 0.25;
-let jump = -5.5;
+const gravity = 0.45;
+const jump = -7;
 
-// 🚧 PIPES
+// 🚧 Pipes
 let pipeX = W;
-let pipeW = 70;
-let pipeGap = 160;
-let pipeH = rand();
+let pipeH = randomPipe();
+const pipeW = 70;
+const gap = 150;
+const speed = 3.2;
 
-let speed = 3;
+// ☁️ Clouds
+let clouds = [
+    {x: 80, y: 100, r: 20},
+    {x: 200, y: 150, r: 30},
+    {x: 320, y: 80, r: 25}
+];
 
-// 🎮 GAME STATE
+// 🎮 State
 let started = false;
 let gameOver = false;
+let paused = false;
 
-// 🏆 SCORE
+// 🏆 Score
 let score = 0;
-let high = localStorage.getItem("high") || 0;
-let lastScore = Date.now();
+let highScore = localStorage.getItem("highScore") || 0;
 
-// 🎲 RANDOM PIPE
-function rand() {
-    return Math.floor(Math.random() * 220) + 80;
+function randomPipe() {
+    return Math.floor(Math.random() * 200) + 120;
 }
 
-// 🔁 RESET
-function reset() {
-    bird.y = 300;
-    bird.v = 0;
+// 💀 reset
+function resetGame() {
+    bird = { x: 80, y: 300, v: 0 };
     pipeX = W;
-    pipeH = rand();
+    pipeH = randomPipe();
     score = 0;
     gameOver = false;
     started = false;
 }
 
-// 🎮 ACTION (FIXED)
-function action() {
+// ⌨️ controls (PC)
+document.addEventListener("keydown", (e) => {
+
+    if (e.code === "Space") {
+        if (!started) started = true;
+
+        else if (!gameOver && !paused) {
+            bird.v = jump;
+            jumpSound.currentTime = 0;
+            jumpSound.play().catch(() => {});
+        }
+
+        else if (gameOver) resetGame();
+    }
+
+    if (e.code === "Escape") paused = !paused;
+});
+
+
+// ===============================
+// 📱 MOBILE TOUCH FIX (ADDED)
+// ===============================
+
+// Tap anywhere
+document.addEventListener("touchstart", handleAction);
+
+// Click support (mobile + desktop)
+document.addEventListener("click", handleAction);
+
+// prevent scrolling on mobile
+document.addEventListener("touchmove", function(e){
+    e.preventDefault();
+}, { passive: false });
+
+function handleAction() {
 
     if (!started) {
         started = true;
         return;
     }
 
-    if (!gameOver) {
+    if (!gameOver && !paused) {
         bird.v = jump;
         jumpSound.currentTime = 0;
-        jumpSound.play().catch(()=>{});
+        jumpSound.play().catch(() => {});
         return;
     }
 
-    reset();
+    if (gameOver) {
+        resetGame();
+        return;
+    }
 }
 
-// 📱 CONTROLS
-document.addEventListener("keydown", e => {
-    if (e.code === "Space") action();
-});
-
-document.addEventListener("touchstart", action);
-document.addEventListener("click", action);
-
-// ================= GAME LOOP =================
-function loop() {
-
-    ctx.fillStyle = "skyblue";
+// 🌤️ SKY
+function drawSky() {
+    let grad = ctx.createLinearGradient(0, 0, 0, H);
+    grad.addColorStop(0, "#6ec6ff");
+    grad.addColorStop(1, "#bfe9ff");
+    ctx.fillStyle = grad;
     ctx.fillRect(0, 0, W, H);
+}
 
-    // ☁️ SIMPLE CLOUDS (STABLE)
-    ctx.fillStyle = "white";
-    for (let i = 0; i < 3; i++) {
-        let cx = 80 + i * 120;
-        let cy = 80 + i * 20;
-
-        ctx.beginPath();
-        ctx.arc(cx, cy, 20, 0, Math.PI * 2);
-        ctx.arc(cx + 18, cy + 5, 18, 0, Math.PI * 2);
-        ctx.arc(cx - 18, cy + 5, 18, 0, Math.PI * 2);
-        ctx.fill();
-    }
-
-    // 🐤 BIRD (REAL SHAPE + HITBOX MATCHES)
-    ctx.fillStyle = "yellow";
+// ☁️ clouds
+function drawCloud(c) {
+    ctx.fillStyle = "rgba(255,255,255,0.9)";
     ctx.beginPath();
-    ctx.arc(bird.x, bird.y, bird.r, 0, Math.PI * 2);
+    ctx.arc(c.x, c.y, c.r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(c.x + 20, c.y + 10, c.r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(c.x - 20, c.y + 10, c.r, 0, Math.PI * 2);
+    ctx.fill();
+}
+
+// 🐤 BIRD
+function drawBird() {
+    ctx.fillStyle = "#ffb300";
+    ctx.beginPath();
+    ctx.ellipse(bird.x, bird.y, 16, 12, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // eye
     ctx.fillStyle = "black";
     ctx.beginPath();
     ctx.arc(bird.x + 5, bird.y - 4, 2, 0, Math.PI * 2);
     ctx.fill();
+}
 
-    if (started && !gameOver) {
+// 🚧 PIPE
+function drawPipe(x, y, h) {
+    ctx.fillStyle = "#4CAF50";
+    ctx.fillRect(x, 0, pipeW, h);
+    ctx.fillRect(x, h + gap, pipeW, H);
+}
+
+// 💥 death
+function die() {
+    gameOver = true;
+    hitSound.currentTime = 0;
+    hitSound.play().catch(() => {});
+}
+
+// 🎮 LOOP
+function update() {
+
+    drawSky();
+
+    // clouds
+    for (let c of clouds) {
+        drawCloud(c);
+        c.x -= 0.3;
+        if (c.x < -50) c.x = W + 50;
+    }
+
+    if (started && !gameOver && !paused) {
 
         bird.v += gravity;
         bird.y += bird.v;
@@ -118,65 +176,47 @@ function loop() {
 
         if (pipeX < -pipeW) {
             pipeX = W;
-            pipeH = rand();
-        }
-
-        // SCORE
-        if (Date.now() - lastScore > 2000) {
+            pipeH = randomPipe();
             score++;
-            lastScore = Date.now();
         }
 
-        if (score > high) {
-            high = score;
-            localStorage.setItem("high", high);
-        }
-
-        // 🚨 PERFECT COLLISION FIX
         if (
-            bird.x + bird.r > pipeX &&
-            bird.x - bird.r < pipeX + pipeW &&
-            (
-                bird.y - bird.r < pipeH ||
-                bird.y + bird.r > pipeH + pipeGap
-            )
-        ) {
-            gameOver = true;
-            hitSound.currentTime = 0;
-            hitSound.play().catch(()=>{});
-        }
+            bird.x + 15 > pipeX &&
+            bird.x - 15 < pipeX + pipeW &&
+            (bird.y < pipeH || bird.y > pipeH + gap)
+        ) die();
 
-        // screen crash
-        if (bird.y < 0 || bird.y > H) {
-            gameOver = true;
-            hitSound.currentTime = 0;
-            hitSound.play().catch(()=>{});
+        if (bird.y < 0 || bird.y > H) die();
+
+        if (score > highScore) {
+            highScore = score;
+            localStorage.setItem("highScore", highScore);
         }
     }
 
-    // 🚧 PIPES (FIXED VISUAL)
-    ctx.fillStyle = "#3CB043";
-    ctx.fillRect(pipeX, 0, pipeW, pipeH);
-    ctx.fillRect(pipeX, pipeH + pipeGap, pipeW, H);
+    drawPipe(pipeX, 0, pipeH);
+    drawBird();
 
-    // 📊 SCORE
+    // score
     ctx.fillStyle = "black";
-    ctx.font = "18px Arial";
-    ctx.fillText("Score: " + score, 10, 25);
-    ctx.fillText("High: " + high, 10, 50);
+    ctx.font = "20px Arial";
+    ctx.fillText("Score: " + score, 10, 30);
+    ctx.fillText("High: " + highScore, 10, 60);
 
-    if (!started) {
-        ctx.fillText("Tap / Space to Start", 80, 300);
-    }
+    if (!started) ctx.fillText("Tap / Space to Start", 80, 250);
+
+    if (paused) ctx.fillText("PAUSED", 150, 250);
 
     if (gameOver) {
         ctx.fillStyle = "red";
-        ctx.fillText("GAME OVER", 120, 300);
+        ctx.font = "30px Arial";
+        ctx.fillText("GAME OVER", 110, 250);
         ctx.fillStyle = "black";
-        ctx.fillText("Tap to Restart", 120, 330);
+        ctx.font = "20px Arial";
+        ctx.fillText("Tap to Restart", 110, 290);
     }
 
-    requestAnimationFrame(loop);
+    requestAnimationFrame(update);
 }
 
-loop();
+update();
